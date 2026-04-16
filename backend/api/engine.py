@@ -6,17 +6,20 @@ from bs4 import BeautifulSoup
 from langchain_community.document_loaders import WebBaseLoader, PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
-from langchain_ollama import ChatOllama, OllamaEmbeddings
+from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from langchain_core.prompts import ChatPromptTemplate
 
 from .models import Book
 
 # Initialize vectorstore
-persist_directory = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'chroma_db')
+if os.path.exists('/data'):
+    persist_directory = '/data/chroma_db'
+else:
+    persist_directory = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'chroma_db')
 
 def get_vectorstore():
-    # We use Ollama for local embeddings
-    embeddings = OllamaEmbeddings(model="nomic-embed-text")
+    # We use Gemini for embeddings to fit in cloud memory constraints
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
     vectorstore = Chroma(
         collection_name="books_collection",
         embedding_function=embeddings,
@@ -33,7 +36,7 @@ def scrape_and_process():
     # Let's scrape the first 3 books to save time & API costs for the demo
     articles = soup.find_all('article', class_='product_pod')[:3]
     
-    chat = ChatOllama(model="llama3", format="json")
+    chat = ChatGoogleGenerativeAI(model="gemini-1.5-flash")
     vectorstore = get_vectorstore()
     
     processed_books = []
@@ -60,7 +63,12 @@ def scrape_and_process():
         response_msg = chain.invoke({"title": title, "description": description})
         
         try:
-            insights = json.loads(response_msg.content)
+            content = response_msg.content.strip()
+            if content.startswith("```json"):
+                content = content[7:-3].strip()
+            elif content.startswith("```"):
+                content = content[3:-3].strip()
+            insights = json.loads(content)
             summary = insights.get('summary', '')
             genre = insights.get('genre', '')
         except (json.JSONDecodeError, AttributeError):
@@ -97,7 +105,7 @@ def scrape_and_process():
 
 
 def process_uploaded_book(file_path, filename):
-    chat = ChatOllama(model="llama3", format="json")
+    chat = ChatGoogleGenerativeAI(model="gemini-1.5-flash")
     vectorstore = get_vectorstore()
     
     # Extract text based on file type
@@ -123,7 +131,12 @@ def process_uploaded_book(file_path, filename):
     response_msg = chain.invoke({"title": title, "description": description})
     
     try:
-        insights = json.loads(response_msg.content)
+        content = response_msg.content.strip()
+        if content.startswith("```json"):
+            content = content[7:-3].strip()
+        elif content.startswith("```"):
+            content = content[3:-3].strip()
+        insights = json.loads(content)
         summary = insights.get('summary', '')
         genre = insights.get('genre', '')
     except (json.JSONDecodeError, AttributeError):
@@ -167,7 +180,7 @@ def rag_query(question):
         ("user", "Context:\n{context}\n\nQuestion: {question}")
     ])
     
-    chat = ChatOllama(model="llama3")
+    chat = ChatGoogleGenerativeAI(model="gemini-1.5-flash")
     chain = prompt | chat
     response_msg = chain.invoke({"context": context, "question": question})
     
