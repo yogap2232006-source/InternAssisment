@@ -19,7 +19,7 @@ else:
 
 def get_vectorstore():
     # We use Gemini for embeddings to fit in cloud memory constraints
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
     vectorstore = Chroma(
         collection_name="books_collection",
         embedding_function=embeddings,
@@ -36,7 +36,7 @@ def scrape_and_process():
     # Let's scrape the first 3 books to save time & API costs for the demo
     articles = soup.find_all('article', class_='product_pod')[:3]
     
-    chat = ChatGoogleGenerativeAI(model="gemini-1.5-flash")
+    chat = ChatGoogleGenerativeAI(model="gemini-flash-latest")
     vectorstore = get_vectorstore()
     
     processed_books = []
@@ -105,7 +105,7 @@ def scrape_and_process():
 
 
 def process_uploaded_book(file_path, filename):
-    chat = ChatGoogleGenerativeAI(model="gemini-1.5-flash")
+    chat = ChatGoogleGenerativeAI(model="gemini-flash-latest")
     vectorstore = get_vectorstore()
     
     # Extract text based on file type
@@ -180,7 +180,7 @@ def rag_query(question):
         ("user", "Context:\n{context}\n\nQuestion: {question}")
     ])
     
-    chat = ChatGoogleGenerativeAI(model="gemini-1.5-flash")
+    chat = ChatGoogleGenerativeAI(model="gemini-flash-latest")
     chain = prompt | chat
     response_msg = chain.invoke({"context": context, "question": question})
     
